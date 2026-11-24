@@ -177,3 +177,8 @@ It uses the self-contained setup and controller object.
 The SH1106 source retains its original Adafruit attribution and BSD-license
 notice. The GTD35 and TDAxis12 source files are preserved from the supplied
 archive. No new license is asserted for those two components.
+
+
+## STM32 compatibility fix (1.2.1)
+
+Removed an unused AVR-only `avr/pgmspace.h` include from the SH1106 driver. The driver contains no `PROGMEM` or `pgm_read_*` calls, so this header is not required on STM32. The display driver still uses the STM32 `HardWire` interface.
