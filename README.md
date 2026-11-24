@@ -19,8 +19,8 @@ The high-level functions are implemented in `src/Saratech.cpp`.
 
 1. Copy the `Saratech` folder into your Arduino `libraries` folder.
 2. Install **Adafruit GFX Library** through Arduino Library Manager.
-3. Use a compatible STM32 Arduino core that provides `HardWire.h` and the
-   `TwoWire` API used by the supplied project.
+3. Use the official **STM32duino / STM32 MCU based boards** core.
+   This version uses its pin-based `TwoWire(SDA, SCL)` API.
 4. Restart Arduino IDE.
 
 ## Simple setup (recommended)
@@ -30,7 +30,7 @@ previously declared as separate global objects in `2C.ino`:
 
 - `Adafruit_SH1106 display(-1)`
 - `GTD35 driver(Serial1)`
-- `TwoWire i2c(2, I2C_FAST_MODE)`
+- `TwoWire i2c(PB11, PB10)` with a 400 kHz bus clock
 - `TDAxis12 gyro(&i2c, 0x10)`
 
 Declare only one controller object:
@@ -55,7 +55,7 @@ void loop() {
 
 1. `Serial1` motor driver starts at `115200` baud.
 2. Wait `200` milliseconds.
-3. Start I2C bus `TwoWire(2, I2C_FAST_MODE)`.
+3. Start I2C2 on PB11 (SDA) and PB10 (SCL) at 400 kHz. The OLED, MV sensor, and gyro share this same `TwoWire` object.
 4. Initialize the OLED with the same `display.begin(0x3c)` call as the supplied sketch.
 5. Set OLED text size to `2` and text color to `WHITE`.
 
@@ -76,7 +76,7 @@ components itself can continue to use it:
 
 ```cpp
 GTD35 driver(Serial1);
-TwoWire i2c(2, I2C_FAST_MODE);
+TwoWire i2c(PB11, PB10);
 TDAxis12 gyro(&i2c, 0x10);
 Saratech robot(driver, gyro, i2c);
 
@@ -159,17 +159,11 @@ It uses the self-contained setup and controller object.
 
 ## Compatibility and verification notes
 
-- `GTD35.h/.cpp`, `TDAxis12.h/.cpp`, and `Adafruit_SH1106_STM32.h/.cpp` are
-  retained without changes.
-- The original component class names and functions remain available through
-  `#include <Saratech.h>`.
-- The display driver depends on **Adafruit GFX Library**. It is not included
-  because it was not one of the three supplied libraries.
-- The display driver uses the STM32-specific `HardWire` implementation from
-  the supplied library.
-- The one-call setup uses the hardware assignments from the supplied sketch:
-  `Serial1`, I2C instance `2`, `I2C_FAST_MODE`, gyro address `0x10`, and MV
-  address `0x42`.
+- The original GTD35 and TDAxis12 APIs are retained.
+- The SH1106 display API is retained. Its I2C transport now uses the official STM32duino `Wire` API.
+- The display, MV sensor, and TDAxis12 gyro share one `TwoWire` object when used through `Saratech`.
+- For the STM32F103C8T6 Blue Pill, the default I2C2 pins are PB11 (SDA) and PB10 (SCL). The bus clock is set to 400 kHz.
+- The display driver depends on **Adafruit GFX Library**. Install it through Arduino Library Manager.
 - Physical operation requires validation on the target STM32 board and hardware.
 
 ## Original source and notices
@@ -179,6 +173,10 @@ notice. The GTD35 and TDAxis12 source files are preserved from the supplied
 archive. No new license is asserted for those two components.
 
 
-## STM32 compatibility fix (1.2.1)
+## Version 1.2.3
 
-Removed an unused AVR-only `avr/pgmspace.h` include from the SH1106 driver. The driver contains no `PROGMEM` or `pgm_read_*` calls, so this header is not required on STM32. The display driver still uses the STM32 `HardWire` interface.
+- Uses the official STM32duino `TwoWire(SDA, SCL)` API.
+- Configures STM32F103C8T6 I2C2 as SDA=PB11 and SCL=PB10, with a 400 kHz clock.
+- Shares one `TwoWire` object between the OLED, MV sensor, and TDAxis12 gyro.
+- Uses master-mode `begin()` for the I2C bus.
+- Uses `SPISettings` instead of the removed `SPI.setClockDivider()` API.

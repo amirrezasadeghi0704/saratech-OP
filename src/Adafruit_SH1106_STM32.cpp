@@ -22,8 +22,12 @@ All text above, and the splash screen below must be included in any redistributi
 //#endif
 #include <stdlib.h>
 
-#include <HardWire.h>
-HardWire HWIRE(2,I2C_FAST_MODE); // I2c2
+#include <Wire.h>
+
+// STM32F103C8T6 I2C2 pins on the STM32duino core: SDA=PB11, SCL=PB10.
+// Saratech can point the display at its own shared TwoWire object.
+static TwoWire sh1106DefaultWire(PB11, PB10);
+static const uint32_t SH1106_I2C_FREQUENCY = 400000UL;
 
 #include "Adafruit_GFX.h"
 #include "Adafruit_SH1106_STM32.h"
@@ -147,6 +151,7 @@ Adafruit_SH1106::Adafruit_SH1106(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST,
   sclk = SCLK;
   sid = SID;
   hwSPI = false;
+  _i2cWire = &sh1106DefaultWire;
 }
 
 // constructor for hardware SPI - we indicate DataCommand, ChipSelect, Reset
@@ -155,6 +160,7 @@ Adafruit_SH1106::Adafruit_SH1106(int8_t DC, int8_t RST, int8_t CS) : Adafruit_GF
   rst = RST;
   cs = CS;
   hwSPI = true;
+  _i2cWire = &sh1106DefaultWire;
 }
 
 // initializer for I2C - we only indicate the reset pin!
@@ -162,8 +168,15 @@ Adafruit_SH1106::Adafruit_SH1106(int8_t reset) :
 Adafruit_GFX(SH1106_LCDWIDTH, SH1106_LCDHEIGHT) {
   sclk = dc = cs = sid = -1;
   rst = reset;
+  _i2cWire = &sh1106DefaultWire;
 }
 
+
+void Adafruit_SH1106::setI2C(TwoWire *wire) {
+  if (wire != NULL) {
+    _i2cWire = wire;
+  }
+}
 
 void Adafruit_SH1106::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
   _vccstate = vccstate;
@@ -187,18 +200,18 @@ void Adafruit_SH1106::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
       mosipinmask = digitalPinToBitMask(sid);
       }
     if (hwSPI){
-      SPI.begin ();
-#ifdef __SAM3X8E__
-      SPI.setClockDivider (9); // 9.3 MHz
-#else
-      SPI.setClockDivider (SPI_CLOCK_DIV2); // 8 MHz
-#endif
+      SPI.begin();
+      // Configure the same 8 MHz, MSB-first, SPI mode 0 used by the old divider.
+      // End the transaction after configuration. The peripheral keeps these settings.
+      SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+      SPI.endTransaction();
       }
     }
   else
   {
-    // I2C Init
-    HWIRE.begin(SH1106_I2C_ADDRESS);
+    // I2C master initialization on the selected TwoWire object.
+    _i2cWire->begin();
+    _i2cWire->setClock(SH1106_I2C_FREQUENCY);
 #ifdef __SAM3X8E__
     // Force 400 KHz I2C, rawr! (Uses pins 20, 21 for SDA, SCL)
     TWI1->TWI_CWGR = 0;
@@ -358,12 +371,11 @@ void Adafruit_SH1106::sh1106_command(uint8_t c) {
   else
   {
     // I2C
-    HWIRE.begin(SH1106_I2C_ADDRESS);
     uint8_t control = 0x00;   // Co = 0, D/C = 0
-    HWIRE.beginTransmission(_i2caddr);
+    _i2cWire->beginTransmission(_i2caddr);
     WIRE_WRITE(control);
     WIRE_WRITE(c);
-    HWIRE.endTransmission();
+    _i2cWire->endTransmission();
   }
 }
 
@@ -474,10 +486,10 @@ void Adafruit_SH1106::sh1106_data(uint8_t c) {
   {
     // I2C
     uint8_t control = 0x40;   // Co = 0, D/C = 1
-    HWIRE.beginTransmission(_i2caddr);
+    _i2cWire->beginTransmission(_i2caddr);
     WIRE_WRITE(control);
     WIRE_WRITE(c);
-    HWIRE.endTransmission();
+    _i2cWire->endTransmission();
   }
 }
 
@@ -526,14 +538,14 @@ void Adafruit_SH1106::display(void) {
       for (uint16_t j = SH1106_LCDWIDTH; j > 0; j--)
       {
         // send a bunch of data in one xmission
-        HWIRE.beginTransmission(_i2caddr);
+        _i2cWire->beginTransmission(_i2caddr);
         WIRE_WRITE(0x40);
         for (uint8_t x=0; x<16; x++) {
           WIRE_WRITE(buffer[i*SH1106_LCDWIDTH+SH1106_LCDWIDTH-j]);
           j--;
         }
         j++;
-        HWIRE.endTransmission();
+        _i2cWire->endTransmission();
       }
     }
     /*

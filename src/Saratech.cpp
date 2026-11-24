@@ -3,7 +3,7 @@
 Saratech::Saratech()
     : display(-1),
       _ownedMotorDriver(Serial1),
-      _ownedMvWire(2, I2C_FAST_MODE),
+      _ownedMvWire(PB11, PB10),
       _ownedGyro(&_ownedMvWire, 0x10),
       _motorDriver(&_ownedMotorDriver),
       _gyro(&_ownedGyro),
@@ -15,7 +15,7 @@ Saratech::Saratech(GTD35 &motorDriver, TDAxis12 &gyro, TwoWire &mvWire,
                    uint8_t mvAddress)
     : display(-1),
       _ownedMotorDriver(Serial1),
-      _ownedMvWire(2, I2C_FAST_MODE),
+      _ownedMvWire(PB11, PB10),
       _ownedGyro(&_ownedMvWire, 0x10),
       _motorDriver(&motorDriver),
       _gyro(&gyro),
@@ -27,7 +27,8 @@ void Saratech::setup() {
     // Keep the initialization sequence and values from the original 2C.ino.
     _motorDriver->begin(115200);
     delay(200);
-    _mvWire->begin();
+    // Use one I2C2 object for the MV sensor, gyro, and OLED.
+    display.setI2C(_mvWire);
     display.begin(0x3c);
     display.setTextSize(2);
     display.setTextColor(WHITE);

@@ -23,8 +23,8 @@ class Saratech {
 public:
     /*
      * Self-contained mode.
-     * Uses the same hardware objects and settings as the supplied 2C.ino:
-     * Serial1, TwoWire(2, I2C_FAST_MODE), TDAxis12 address 0x10,
+     * Uses the STM32duino pin-based API for I2C2:
+     * Serial1, TwoWire(PB11, PB10), 400 kHz, TDAxis12 address 0x10,
      * MV address 0x42, and SH1106 display initialization value 0x3C.
      */
     Saratech();

@@ -18,10 +18,10 @@ All text above, and the splash screen must be included in any redistribution
 
 #if ARDUINO >= 100
  #include "Arduino.h"
- #define WIRE_WRITE HWIRE.write
+ #define WIRE_WRITE _i2cWire->write
 #else
  #include "WProgram.h"
-  #define WIRE_WRITE HWIRE.send
+  #define WIRE_WRITE _i2cWire->send
 #endif
 
 #ifdef __SAM3X8E__
@@ -36,6 +36,7 @@ All text above, and the splash screen must be included in any redistribution
 
 
 #include <SPI.h>
+#include <Wire.h>
 #include <Adafruit_GFX.h>
 
 #define BLACK 0
@@ -138,6 +139,8 @@ class Adafruit_SH1106 : public Adafruit_GFX {
   Adafruit_SH1106(int8_t RST);
 
   void begin(uint8_t switchvcc = SH1106_SWITCHCAPVCC, uint8_t i2caddr = SH1106_I2C_ADDRESS, bool reset=true);
+  // Select the I2C object used by this display. The default remains I2C2.
+  void setI2C(TwoWire *wire);
   void sh1106_command(uint8_t c);
   void sh1106_data(uint8_t c);
 
@@ -164,6 +167,7 @@ class Adafruit_SH1106 : public Adafruit_GFX {
   void fastSPIwrite(uint8_t c);
 
   boolean hwSPI;
+  TwoWire *_i2cWire;
   volatile uint32_t *mosiport, *clkport, *csport, *dcport;
   PortMask mosipinmask, clkpinmask, cspinmask, dcpinmask;
 
